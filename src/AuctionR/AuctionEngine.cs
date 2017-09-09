@@ -40,6 +40,9 @@ namespace AuctionR
                     if (_auctions.TryRemove(auction.Key, out _))
                     {
                         _auctionHubContext.Clients.All.InvokeAsync("AuctionEnded", auction.Key);
+                        var newAuction = GenerateAuction();
+                        _auctions.GetOrAdd(newAuction.Id, newAuction);
+                        _auctionHubContext.Clients.All.InvokeAsync("AuctionAdded", auction.Value);
                     }
                 }
             }
@@ -63,7 +66,8 @@ namespace AuctionR
             };
 
             var startTime = DateTimeOffset.Now.AddSeconds(_random.Next(10, 60));
-            var endTime = startTime.AddSeconds(_random.Next(60, 120));
+            //            var endTime = startTime.AddSeconds(_random.Next(60, 120));
+            var endTime = startTime.AddSeconds(_random.Next(5, 15));
             var startingPrice = _random.Next(100, 200);
             var reserve = startingPrice + _random.Next(1, 50);
             return new Auction(auctionItems[_random.Next(0, auctionItems.Length - 1)], startTime, endTime, startingPrice, reserve);

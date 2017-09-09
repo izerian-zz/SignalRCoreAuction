@@ -4,9 +4,8 @@
     ViewData["Title"] = "Home page";
 }
 
-
 <div>
-    <table class="table">
+    <table class="table" id="auction-table">
         <thead>
             <tr>
                 <th>Id</th>
@@ -18,7 +17,7 @@
         <tbody>
             @foreach (var auction in Model.Auctions)
             {
-                <tr scope="row">
+                <tr scope="row" id="auction-@auction.Id" class="bg-info">
                     <td>@auction.Id</td>
                     <td>@auction.Item.Name</td>
                     <td>@auction.StartTime</td>
@@ -26,9 +25,78 @@
                     <td>$@auction.StartingPrice</td>
                     <td>$@auction.BidPrice</td>
                     <td>TODO: Minimum Bid</td>
-                    <td><button type="button" disabled="disabled" class="btn">Bid</button></td>
+                    <td><button id="bid-button-@auction.Id" type="button" class="btn">Bid</button></td>
                 </tr>
             }
         </tbody>
     </table>
+    <div id="error-banner" class="alert alert-danger" hidden="hidden" />
 </div>
+@section scripts
+{
+    <script language="javascript">
+        if (typeof Promise === 'undefined') {
+            document.write(
+                '<script type="text/javascript" src="lib/signalr-client/signalr-clientES5.min.js"><\/script>' +
+                '<script type="text/javascript" src="lib/signalr-client/signalr-msgpackprotocolES5.min.js"><\/script>');
+        }
+        else {
+            document.write(
+                '<script type="text/javascript" src="lib/signalr-client/signalr-client.min.js"><\/script>' +
+                '<script type="text/javascript" src="lib/signalr-client/signalr-msgpackprotocol.min.js"><\/script>');
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            var name = window.prompt('Enter your name');
+            // TODO: enable specifying transport
+            var httpConnection = new signalR.HttpConnection('http://' + document.location.host + '/auction');
+            hubConnection = new signalR.HubConnection(httpConnection);
+
+            hubConnection.on('AuctionAdded', function (auction) {
+                console.log('Auction added', JSON.stringify(auction));
+                var auctionTable = document.getElementById('auction-table');
+                var row = auctionTable.insertRow(1);
+                row.Id = "auction
+                row.insertCell(0).innerHTML = auction.Id;
+                row.insertCell(1).innerHTML = auction.Item.Name;
+                row.insertCell(2).innerHTML = auction.StartTime;
+                row.insertCell(3).innerHTML = auction.EndTime;
+                row.insertCell(4).innerHTML = auction.StartingPrice;
+            });
+
+            hubConnection.on('AuctionStarting', function (auction) {
+                console.log('Auction is starting', JSON.stringify(auction));
+            });
+
+            hubConnection.on('AuctionEnded', function (auctionId) {
+                var bidButton = document.getElementById('bid-button-' + auctionId);
+                if (bidButton) {
+                    bidButton.disabled = true;
+                }
+
+                var bidAuction = document.getElementById('auction-' + auctionId);
+                if (bidAuction) {
+                    bidAuction.className = "bg-info";
+                }
+            });
+
+            hubConnection.start()
+                .then(function () { })
+                .catch(function (e) {
+                    showError('Starting the connection failed with error: ' + e.message);
+                });
+
+            hubConnection.onClosed = function (e) {
+                showError('Connection closed. ' + e);
+            };
+        });
+
+        function showError(errorMsg) {
+            var errorBanner = document.getElementById('error-banner');
+            errorBanner.hidden = false;
+            errorBanner.innerHTML = "<strong>" + errorMsg + "</strong>";
+        }
+
+    </script>
+}
